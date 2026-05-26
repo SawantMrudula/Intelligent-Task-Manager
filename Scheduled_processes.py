@@ -8,7 +8,8 @@ import os
 import platform
 import math
 import datetime
-import time
+import subprocess
+from typing import List, Dict, Any
 
 # Ensure Windows-only execution
 if platform.system() != "Windows":
@@ -52,107 +53,114 @@ def _run_loop(loop):
     except Exception as e:
         print(f"Error in run loop: {e}")
 
-def format_timestamp(timestamp):
-    """Formats Unix timestamp to a readable date/time format."""
-    if timestamp:
-        try:
-            return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-        except (ValueError, TypeError, OSError):
-            return "N/A"
-    return "N/A"
-
-def format_duration(seconds):
-    """Formats duration in seconds to a readable format."""
-    if seconds is None:
-        return "N/A"
-    
+def get_scheduled_tasks() -> List[Dict[str, Any]]:
+    """Fetches Windows scheduled tasks information."""
+    scheduled_tasks = []
     try:
-        minutes, seconds = divmod(int(seconds), 60)
-        hours, minutes = divmod(minutes, 60)
-        if hours > 0:
-            return f"{hours}h {minutes}m {seconds}s"
-        elif minutes > 0:
-            return f"{minutes}m {seconds}s"
-        else:
-            return f"{seconds}s"
-    except (ValueError, TypeError):
-        return "N/A"
-
-def estimate_next_run(proc_info):
-    """Estimate next run time based on CPU usage and process pattern."""
-    try:
-        # Special handling for system processes
-        if proc_info.get('is_system', False):
-            # System processes like "System Idle Process" run continuously
-            # Return "Continuous" for these types of processes
-            return "Continuous"
+        # Use schtasks command to get scheduled tasks
+        output = subprocess.check_output(
+            "schtasks /query /fo LIST /v", 
+            shell=True, 
+            encoding='utf-8', 
+            errors='ignore'
+        )
         
-        # For processes with higher CPU usage, estimate they'll be active again soon
-        if proc_info.get('cpu_percent', 0) > 5:
-            # Active process - estimate next run in a few seconds
-            next_run = datetime.datetime.now() + datetime.timedelta(seconds=5)
-            return next_run.strftime('%Y-%m-%d %H:%M:%S')
-        else:
-            # Idle process - estimate next run in a minute
-            next_run = datetime.datetime.now() + datetime.timedelta(minutes=1)
-            return next_run.strftime('%Y-%m-%d %H:%M:%S')
-    except:
-        return "N/A"
+        # Parse the output
+        current_task = {}
+        for line in output.splitlines():
+            line = line.strip()
+            if not line:
+                if current_task and "TaskName" in current_task:
+                    scheduled_tasks.append(current_task)
+                current_task = {}
+                continue
+                
+            if ":" in line:
+                key, value = line.split(":", 1)
+                key = key.strip()
+                value = value.strip()
+                
+                if key == "TaskName":
+                    current_task["TaskName"] = value
+                elif key == "Next Run Time":
+                    current_task["NextRunTime"] = value
+                elif key == "Status":
+                    current_task["Status"] = value
+                elif key == "Last Run Time":
+                    current_task["LastRunTime"] = value
+                elif key == "Last Result":
+                    current_task["LastResult"] = value
+        
+        # Add the last task if it exists
+        if current_task and "TaskName" in current_task:
+            scheduled_tasks.append(current_task)
+            
+    except Exception as e:
+        print(f"Error fetching scheduled tasks: {e}")
+    
+    return scheduled_tasks
+
+def match_process_to_scheduled_task(process_name: str, scheduled_tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Try to match a process name to a scheduled task.
+    Returns task info if found, otherwise an empty dict.
+    """
+    for task in scheduled_tasks:
+        task_name = task.get("TaskName", "").split("\\")[-1] if task.get("TaskName") else ""
+        if process_name.lower() in task_name.lower():
+            return task
+    return {}
+
+def format_duration(seconds: float) -> str:
+    """Format seconds into a human-readable duration string."""
+    if seconds < 60:
+        return f"{seconds:.1f} sec"
+    elif seconds < 3600:
+        minutes = seconds / 60
+        return f"{minutes:.1f} min"
+    elif seconds < 86400:
+        hours = seconds / 3600
+        return f"{hours:.1f} hrs"
+    else:
+        days = seconds / 86400
+        return f"{days:.1f} days"
 
 def fetch_realtime_tasks():
-    """Fetches real-time processes with timing information."""
+    """Fetches real-time processes with enhanced timing information."""
     tasks = []
-    current_time = time.time()
-    boot_time = psutil.boot_time()  # Get system boot time
-    
     try:
-        # Get processes with more information
-        for proc in list(psutil.process_iter(['pid', 'name', 'username', 'create_time', 'cpu_percent'])):
+        # First, get scheduled tasks information
+        scheduled_tasks = get_scheduled_tasks()
+        
+        # Now get running processes with creation time
+        for proc in list(psutil.process_iter(['pid', 'name', 'username', 'create_time']))[:50]:
             try:
-                # Get basic info from the iterator
                 info = proc.info
-                
-                # Determine process type
                 user = info.get('username', None)
-                process_name = info.get('name', 'Unknown')
-                
-                # Special handling for system processes
-                is_system_process = (user is None or "SYSTEM" in user.upper() or 
-                                    process_name.lower() in ["system", "system idle process", "registry", "memory compression"])
-                
-                if is_system_process:
+                if user is None or "SYSTEM" in user.upper():
                     status = "System"
-                    
-                    # Special handling for System Idle Process - use boot time instead
-                    if process_name.lower() == "system idle process":
-                        create_time = boot_time
-                    else:
-                        # For other system processes, try to get create_time or use boot time as fallback
-                        create_time = info.get('create_time', boot_time)
                 else:
                     status = "Non-System"
-                    create_time = info.get('create_time', None)
                 
-                # Get process creation time (start time)
-                start_time = format_timestamp(create_time)
-                
-                # Calculate process duration (current time - creation time)
-                duration = "N/A"
+                # Get process creation time
+                create_time = info.get('create_time', None)
                 if create_time:
-                    try:
-                        duration_sec = current_time - create_time
-                        duration = format_duration(duration_sec)
-                    except:
-                        duration = "N/A"
+                    start_time = datetime.datetime.fromtimestamp(create_time).strftime("%Y-%m-%d %H:%M")
+                    duration_seconds = (datetime.datetime.now() - datetime.datetime.fromtimestamp(create_time)).total_seconds()
+                    duration = format_duration(duration_seconds)
+                else:
+                    start_time = "N/A"
+                    duration = "N/A"
                 
-                # Additional process info for next run estimation
-                proc_info = {
-                    'cpu_percent': info.get('cpu_percent', 0),
-                    'is_system': is_system_process
-                }
+                # Try to match with a scheduled task
+                process_name = info['name'] or "Unknown"
+                matched_task = match_process_to_scheduled_task(process_name, scheduled_tasks)
                 
-                # Attempt to get next run time
-                next_run = estimate_next_run(proc_info)
+                # Get next run time from scheduled task if available
+                next_run = matched_task.get("NextRunTime", "N/A")
+                if next_run == "N/A" and status == "System":
+                    # For system processes, can approximate as recurring
+                    next_run = "System managed"
                 
                 tasks.append({
                     "name": process_name,
@@ -160,13 +168,12 @@ def fetch_realtime_tasks():
                     "status": status,
                     "start_time": start_time,
                     "duration": duration,
-                    "first_scheduled": f"PID: {info['pid']}",
+                    "first_scheduled": matched_task.get("LastRunTime", f"PID: {info['pid']}"),
                 })
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
     except Exception as e:
         print(f"Error fetching tasks: {e}")
-    
     return tasks
 
 #####################################

@@ -4,6 +4,7 @@ import subprocess
 import threading
 import time
 import re
+from functools import lru_cache
 
 # For microphone functionality
 from ctypes import cast, POINTER
@@ -53,6 +54,11 @@ class DeviceManagerUI:
 
         # PowerShell path (for Windows-based operations)
         self.POWERSHELL_PATH = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+        
+        # Cache for device lookups
+        self.device_cache = {}
+        self.cache_timestamp = 0
+        self.CACHE_LIFETIME = 60  # Cache lifetime in seconds
 
     # ----------------------
     # LOGGING & UTILITY
@@ -81,42 +87,77 @@ class DeviceManagerUI:
             self.log_column.controls.clear()
             self.add_to_log("🧹 Logs cleared", self.text_color)
 
-    def run_powershell_command(self, command: str) -> str:
+    @lru_cache(maxsize=32)
+    def run_powershell_command(self, command: str, use_cache=True) -> str:
         """Run a PowerShell command and return its output (Windows only)."""
         if not os.path.exists(self.POWERSHELL_PATH):
             return "❌ PowerShell is not available."
 
+        cache_key = f"ps_{command}"
+        current_time = time.time()
+        
+        # Check if we can use cache
+        if use_cache and cache_key in self.device_cache and current_time - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache[cache_key]
+            
         try:
             output = subprocess.check_output(
                 [self.POWERSHELL_PATH, "-Command", command],
                 encoding="utf-8",
-                stderr=subprocess.STDOUT
+                stderr=subprocess.STDOUT,
+                timeout=5  # Add timeout to prevent hanging
             )
-            return output.strip()
+            result = output.strip()
+            
+            # Cache result if needed
+            if use_cache:
+                self.device_cache[cache_key] = result
+                self.cache_timestamp = current_time
+                
+            return result
         except subprocess.CalledProcessError as e:
             return f"❌ Error: {e.output.strip()}"
+        except subprocess.TimeoutExpired:
+            return "❌ Command timed out"
 
     def is_admin(self) -> bool:
         """Check if script is running with administrator privileges (Windows)."""
+        if "is_admin" in self.device_cache and time.time() - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache["is_admin"]
+            
         command = '[bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).Groups -match "S-1-5-32-544")'
         output = self.run_powershell_command(command)
-        return "True" in output
+        result = "True" in output
+        
+        self.device_cache["is_admin"] = result
+        return result
 
     # ----------------------
-    # USB FUNCTIONALITY
+    # USB FUNCTIONALITY - Optimized with caching
     # ----------------------
     def get_usb_ports(self):
-        """Get all USB devices (Windows)."""
-        command = 'pnputil /enum-devices /class "USB"'
+        """Get all USB devices (Windows) with caching."""
+        cache_key = "usb_ports"
+        current_time = time.time()
+        
+        # Return cached result if available and fresh
+        if cache_key in self.device_cache and current_time - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache[cache_key]
+            
+        command = 'pnputil /enum-devices /class "USB" | findstr /i /C:"USB\\"'
         try:
-            output = subprocess.check_output(command, shell=True, encoding='utf-8')
+            output = subprocess.check_output(command, shell=True, encoding='utf-8', timeout=5)
             usb_devices = []
             for line in output.splitlines():
                 if "USB\\" in line:
                     device_id = line.split(":")[-1].strip()
                     usb_devices.append(device_id)
+                    
+            # Cache the result
+            self.device_cache[cache_key] = usb_devices
+            self.cache_timestamp = current_time
             return usb_devices
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             return []
 
     def toggle_usb(self, action: str, device_id: str = None):
@@ -142,13 +183,17 @@ class DeviceManagerUI:
             self.add_to_log(f"✅ All USB Devices {action}d successfully.", "green")
 
         self.add_to_log("🔄 Please restart your system for complete changes.", "orange")
+        
+        # Clear cache since device state changed
+        if "usb_ports" in self.device_cache:
+            del self.device_cache["usb_ports"]
 
     def create_usb_section(self) -> ft.Container:
-        """USB control UI."""
-        usb_devices = self.get_usb_ports()
+        """USB control UI - Lazy loaded."""
+        # Create empty dropdown that will be populated on demand
         usb_dropdown = ft.Dropdown(
             label="Select USB Device",
-            options=[ft.dropdown.Option(device) for device in usb_devices],
+            options=[ft.dropdown.Option("Click 'Refresh' to load devices")],
             width=300,
             color=self.text_color,
             border_color=self.accent_color,
@@ -156,14 +201,23 @@ class DeviceManagerUI:
             focused_color=self.text_color,
         )
 
+        def refresh_usb_devices(e):
+            devices = self.get_usb_ports()
+            if devices:
+                usb_dropdown.options = [ft.dropdown.Option(device) for device in devices]
+            else:
+                usb_dropdown.options = [ft.dropdown.Option("No USB devices found")]
+            usb_dropdown.update()
+            self.add_to_log("USB device list refreshed", "blue")
+
         def disable_specific_usb(e):
-            if usb_dropdown.value:
+            if usb_dropdown.value and "No USB" not in usb_dropdown.value and "Click" not in usb_dropdown.value:
                 self.toggle_usb("disable", usb_dropdown.value)
             else:
                 self.add_to_log("⚠️ Please select a USB device.", "red")
 
         def enable_specific_usb(e):
-            if usb_dropdown.value:
+            if usb_dropdown.value and "No USB" not in usb_dropdown.value and "Click" not in usb_dropdown.value:
                 self.toggle_usb("enable", usb_dropdown.value)
             else:
                 self.add_to_log("⚠️ Please select a USB device.", "red")
@@ -174,9 +228,19 @@ class DeviceManagerUI:
         def enable_all_usb(e):
             self.toggle_usb("enable")
 
+        refresh_button = ft.IconButton(
+            icon=ft.icons.REFRESH,
+            icon_color=self.text_color,
+            tooltip="Refresh USB Devices",
+            on_click=refresh_usb_devices
+        )
+
         return ft.Container(
             content=ft.Column([
-                ft.Text("USB Control", size=16, weight=ft.FontWeight.BOLD, color=self.text_color),
+                ft.Row([
+                    ft.Text("USB Control", size=16, weight=ft.FontWeight.BOLD, color=self.text_color),
+                    refresh_button
+                ]),
                 ft.Row([usb_dropdown]),
                 ft.Row([
                     ft.ElevatedButton("Disable Selected", on_click=disable_specific_usb, bgcolor="red", color="white"),
@@ -187,7 +251,7 @@ class DeviceManagerUI:
                     ft.ElevatedButton("Enable All USB", on_click=enable_all_usb, bgcolor="green", color="white"),
                 ]),
             ]),
-            bgcolor=self.glass_bgcolor,  # Semi-transparent background
+            bgcolor=self.glass_bgcolor,
             blur=self.container_blur,
             shadow=self.container_shadow,
             border_radius=10,
@@ -196,18 +260,40 @@ class DeviceManagerUI:
         )
 
     # ----------------------
-    # CAMERA FUNCTIONALITY
+    # CAMERA FUNCTIONALITY - Optimized
     # ----------------------
     def enable_camera(self, e):
         """Enable the integrated camera."""
         command = 'Get-PnpDevice -Class Camera | Enable-PnpDevice -Confirm:$false'
         try:
-            result = subprocess.run(["powershell", "-Command", command], capture_output=True, text=True)
+            result = subprocess.run(["powershell", "-Command", command], 
+                                    capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
                 self.add_to_log("✅ Enabled Integrated Camera", "green")
+                
+                # Clear camera status cache
+                if "camera_enabled" in self.device_cache:
+                    del self.device_cache["camera_enabled"]
+                    
+                # Update UI if we can find the control
+                if e and e.page:
+                    for control in e.page.controls:
+                        if hasattr(control, 'content') and isinstance(control.content, ft.Row):
+                            # Try to find the camera status text
+                            for row_control in control.content.controls:
+                                if hasattr(row_control, 'content') and isinstance(row_control.content, ft.Column):
+                                    for col_item in row_control.content.controls:
+                                        if isinstance(col_item, ft.Row) and len(col_item.controls) > 2:
+                                            if isinstance(col_item.controls[0], ft.Icon) and col_item.controls[0].icon == ft.icons.CAMERA_ALT:
+                                                status_text = col_item.controls[2]
+                                                status_text.value = "Enabled"
+                                                status_text.color = "green"
+                                                status_text.update()
             else:
                 error_message = result.stderr.strip() if result.stderr else "No error message available"
                 self.add_to_log(f"❌ Error Enabling Camera: {error_message}", "red")
+        except subprocess.TimeoutExpired:
+            self.add_to_log("❌ Command timed out while enabling camera", "red")
         except Exception as e:
             self.add_to_log(f"❌ Unexpected Error: {str(e)}", "red")
 
@@ -215,20 +301,84 @@ class DeviceManagerUI:
         """Disable the integrated camera."""
         command = 'Get-PnpDevice -Class Camera | Disable-PnpDevice -Confirm:$false'
         try:
-            result = subprocess.run(["powershell", "-Command", command], capture_output=True, text=True)
+            result = subprocess.run(["powershell", "-Command", command], 
+                                    capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
                 self.add_to_log("❌ Disabled Integrated Camera", "red")
+                
+                # Clear camera status cache
+                if "camera_enabled" in self.device_cache:
+                    del self.device_cache["camera_enabled"]
+                    
+                # Update UI if we can find the control
+                if e and e.page:
+                    for control in e.page.controls:
+                        if hasattr(control, 'content') and isinstance(control.content, ft.Row):
+                            # Try to find the camera status text
+                            for row_control in control.content.controls:
+                                if hasattr(row_control, 'content') and isinstance(row_control.content, ft.Column):
+                                    for col_item in row_control.content.controls:
+                                        if isinstance(col_item, ft.Row) and len(col_item.controls) > 2:
+                                            if isinstance(col_item.controls[0], ft.Icon) and col_item.controls[0].icon == ft.icons.CAMERA_ALT:
+                                                status_text = col_item.controls[2]
+                                                status_text.value = "Disabled"
+                                                status_text.color = "red"
+                                                status_text.update()
             else:
                 error_message = result.stderr.strip() if result.stderr else "No error message available"
                 self.add_to_log(f"❌ Error Disabling Camera: {error_message}", "red")
+        except subprocess.TimeoutExpired:
+            self.add_to_log("❌ Command timed out while disabling camera", "red")
         except Exception as e:
             self.add_to_log(f"❌ Unexpected Error: {str(e)}", "red")
 
+    def get_camera_status(self) -> bool:
+        """Check if the camera is enabled or disabled."""
+        cache_key = "camera_enabled"
+        current_time = time.time()
+        
+        # Return cached result if available and fresh
+        if cache_key in self.device_cache and current_time - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache[cache_key]
+            
+        # Default to assuming camera is enabled
+        camera_enabled = True
+        
+        try:
+            # Simple check based on presence of disabled cameras
+            cmd = 'Get-PnpDevice -Class Camera | Where-Object { $_.Status -eq "Disabled" } | Measure-Object | Select-Object -ExpandProperty Count'
+            output = self.run_powershell_command(cmd)
+            count = int(output.strip()) if output.strip().isdigit() else 0
+            camera_enabled = count == 0
+            
+            self.device_cache[cache_key] = camera_enabled
+            self.cache_timestamp = current_time
+        except:
+            pass
+            
+        return camera_enabled
+
     def create_camera_section(self) -> ft.Container:
-        """Camera control UI."""
+        """Camera control UI with status icon."""
+        camera_state = self.get_camera_status()  # True = enabled
+
+        camera_status_text = ft.Text(
+            "Enabled" if camera_state else "Disabled",
+            color="green" if camera_state else "red",
+            size=14,
+            weight=ft.FontWeight.W_500
+        )
+        
         return ft.Container(
             content=ft.Column([
                 ft.Text("Camera Control", size=16, weight=ft.FontWeight.BOLD, color=self.text_color),
+                ft.Container(height=10),
+                ft.Row([
+                    ft.Icon(ft.icons.CAMERA_ALT, color=self.text_color, size=24),
+                    ft.Text("Camera Status:", color=self.text_color, size=14),
+                    camera_status_text,
+                ]),
+                ft.Container(height=10),
                 ft.Row([
                     ft.ElevatedButton(
                         text="Enable Integrated Camera",
@@ -244,21 +394,31 @@ class DeviceManagerUI:
                     ),
                 ]),
             ]),
-            bgcolor=self.glass_bgcolor,  # Semi-transparent background
+            bgcolor=self.glass_bgcolor,
             blur=self.container_blur,
             shadow=self.container_shadow,
             border_radius=10,
             padding=15,
             margin=ft.margin.only(bottom=15),
+            width=450,  # Increased width to better fit the buttons
         )
 
     # ----------------------
-    # MICROPHONE FUNCTIONALITY
+    # MICROPHONE FUNCTIONALITY - Optimized
     # ----------------------
     def get_microphone_device(self):
         """Get the microphone device (Windows with PyCaw)."""
+        cache_key = "mic_device"
+        current_time = time.time()
+        
+        # Return cached result if available and fresh
+        if cache_key in self.device_cache and current_time - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache[cache_key]
+            
         try:
-            devices = AudioUtilities.GetSpeakers()  # PyCaw doesn't have a direct 'GetMicrophone' function
+            devices = AudioUtilities.GetSpeakers()
+            self.device_cache[cache_key] = devices
+            self.cache_timestamp = current_time
             return devices
         except Exception as e:
             self.add_to_log(f"❌ Error accessing microphone: {str(e)}", "red")
@@ -272,14 +432,43 @@ class DeviceManagerUI:
 
         action = "Disable" if mute else "Enable"
         cmd = f'Get-PnpDevice -Class AudioEndpoint | Where-Object {{ $_.FriendlyName -like "*Microphone*" }} | {action}-PnpDevice -Confirm:$false'
-        self.run_powershell_command(cmd)
+        self.run_powershell_command(cmd, use_cache=False)
         status = "disabled" if mute else "enabled"
         self.add_to_log(f"✅ Microphone {status} successfully.", "green")
+        
+        # Clear mic device cache since state changed
+        if "mic_device" in self.device_cache:
+            del self.device_cache["mic_device"]
+            
         return True
 
     def is_microphone_muted(self) -> bool:
         """Check if the microphone is muted."""
-        return False  # Placeholder implementation
+        cache_key = "mic_muted"
+        current_time = time.time()
+        
+        # Return cached result if available and fresh
+        if cache_key in self.device_cache and current_time - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache[cache_key]
+            
+        # Default to assuming not muted
+        muted = False
+        
+        # This is a placeholder implementation - proper implementation would need to
+        # interact with the Windows audio API to determine actual mute state
+        try:
+            # Simple check based on presence of disabled microphones
+            cmd = 'Get-PnpDevice -Class AudioEndpoint | Where-Object { $_.Status -eq "Disabled" -and $_.FriendlyName -like "*Microphone*" } | Measure-Object | Select-Object -ExpandProperty Count'
+            output = self.run_powershell_command(cmd)
+            count = int(output.strip()) if output.strip().isdigit() else 0
+            muted = count > 0
+            
+            self.device_cache[cache_key] = muted
+            self.cache_timestamp = current_time
+        except:
+            pass
+            
+        return muted
 
     def create_microphone_section(self) -> ft.Container:
         """Microphone control UI."""
@@ -324,7 +513,7 @@ class DeviceManagerUI:
                     ft.Text("ON" if not mic_state else "OFF", color="green" if not mic_state else "red"),
                 ]),
             ]),
-            bgcolor=self.glass_bgcolor,  # Semi-transparent background
+            bgcolor=self.glass_bgcolor,
             blur=self.container_blur,
             shadow=self.container_shadow,
             border_radius=10,
@@ -334,41 +523,67 @@ class DeviceManagerUI:
         )
 
     # ----------------------
-    # BLUETOOTH FUNCTIONALITY
+    # BLUETOOTH FUNCTIONALITY - Optimized with caching
     # ----------------------
     def get_bluetooth_devices(self):
-        """Retrieve Bluetooth devices (Windows)."""
+        """Retrieve Bluetooth devices (Windows) with caching."""
+        cache_key = "bt_devices"
+        current_time = time.time()
+        
+        # Return cached result if available and fresh
+        if cache_key in self.device_cache and current_time - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache[cache_key]
+            
         command = 'Get-WmiObject Win32_PnPEntity | Where-Object { $_.PNPClass -eq "Bluetooth" } | Select-Object Caption'
-        output = self.run_powershell_command(command)
+        output = self.run_powershell_command(command, use_cache=False)
         if "❌" in output:
             return []
+        
         bt_devices = [line.strip() for line in output.splitlines() if line.strip() and "Caption" not in line]
+        
+        # Cache the result
+        self.device_cache[cache_key] = bt_devices
+        self.cache_timestamp = current_time
+        
         return bt_devices
 
     def identify_device_type(self, device_name: str) -> str:
-        """Classify device into categories (rough heuristic)."""
-        command = f'Get-WmiObject Win32_PnPEntity | Where-Object {{ $_.Caption -eq "{device_name}" }} | Select-Object PNPClass, Description, DeviceID'
-        output = self.run_powershell_command(command).lower()
-
-        if "headphone" in output or "headset" in output or "earbuds" in device_name.lower():
-            return "Headphones"
-        elif "speaker" in output or "a2dp" in output:
-            return "Speakers"
-        elif "mouse" in output or "hid" in output:
-            return "Mouse"
-        elif "keyboard" in output:
-            return "Keyboard"
-        elif "game" in output or "controller" in output:
-            return "Game Controller"
-        elif "printer" in output:
-            return "Printer"
-        elif "phone" in output or "rfcomm" in output:
-            return "Mobile Device"
-        elif "network" in output or "adapter" in output:
-            return "Network Device"
-        elif "storage" in output or "usb" in output:
-            return "Storage Device"
-        return "Unknown"
+        """Classify device into categories (rough heuristic) with caching."""
+        cache_key = f"dev_type_{device_name}"
+        current_time = time.time()
+        
+        # Return cached result if available and fresh
+        if cache_key in self.device_cache and current_time - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache[cache_key]
+            
+        # Use regex patterns for faster identification instead of another PowerShell call
+        result = "Unknown"
+        device_name_lower = device_name.lower()
+        
+        if "headphone" in device_name_lower or "headset" in device_name_lower or "earbuds" in device_name_lower:
+            result = "Headphones"
+        elif "speaker" in device_name_lower or "a2dp" in device_name_lower:
+            result = "Speakers"
+        elif "mouse" in device_name_lower:
+            result = "Mouse"
+        elif "keyboard" in device_name_lower:
+            result = "Keyboard"
+        elif "game" in device_name_lower or "controller" in device_name_lower:
+            result = "Game Controller"
+        elif "printer" in device_name_lower:
+            result = "Printer"
+        elif "phone" in device_name_lower:
+            result = "Mobile Device"
+        elif "network" in device_name_lower or "adapter" in device_name_lower:
+            result = "Network Device"
+        elif "storage" in device_name_lower:
+            result = "Storage Device"
+            
+        # Cache the result
+        self.device_cache[cache_key] = result
+        self.cache_timestamp = current_time
+        
+        return result
 
     def enable_bluetooth(self, device_name=None):
         """Enable Bluetooth devices."""
@@ -378,12 +593,16 @@ class DeviceManagerUI:
 
         if device_name:
             cmd = f'Get-PnpDevice | Where-Object {{ $_.FriendlyName -eq "{device_name}" }} | Enable-PnpDevice -Confirm:$false'
-            self.run_powershell_command(cmd)
+            self.run_powershell_command(cmd, use_cache=False)
             self.add_to_log(f"✅ Bluetooth device {device_name} enabled.", "green")
         else:
             cmd = 'Start-Service bthserv; Get-PnpDevice | Where-Object { $_.Class -eq "Bluetooth" } | Enable-PnpDevice -Confirm:$false'
-            self.run_powershell_command(cmd)
+            self.run_powershell_command(cmd, use_cache=False)
             self.add_to_log("✅ All Bluetooth devices enabled.", "green")
+            
+        # Clear BT cache since state changed
+        if "bt_devices" in self.device_cache:
+            del self.device_cache["bt_devices"]
 
     def disable_bluetooth(self, device_name=None):
         """Disable Bluetooth devices."""
@@ -393,36 +612,33 @@ class DeviceManagerUI:
 
         if device_name:
             cmd = f'Get-PnpDevice | Where-Object {{ $_.FriendlyName -eq "{device_name}" }} | Disable-PnpDevice -Confirm:$false'
-            self.run_powershell_command(cmd)
+            self.run_powershell_command(cmd, use_cache=False)
             self.add_to_log(f"🚫 Bluetooth device {device_name} disabled.", "blue")
         else:
             cmd = 'Get-PnpDevice | Where-Object { $_.Class -eq "Bluetooth" } | Disable-PnpDevice -Confirm:$false'
-            self.run_powershell_command(cmd)
+            self.run_powershell_command(cmd, use_cache=False)
             self.add_to_log("🚫 All Bluetooth devices disabled.", "blue")
+            
+        # Clear BT cache since state changed
+        if "bt_devices" in self.device_cache:
+            del self.device_cache["bt_devices"]
 
     def create_bluetooth_section(self) -> ft.Container:
-        """Bluetooth control UI."""
-        bt_devices = self.get_bluetooth_devices()
+        """Bluetooth control UI with lazy-loading."""
+        # Create empty dropdowns that will be populated on demand
         bt_dropdown = ft.Dropdown(
             label="Select Bluetooth Device",
-            options=[ft.dropdown.Option(bt) for bt in bt_devices] if bt_devices else [ft.dropdown.Option("⚠️ No Bluetooth Devices Found")],
+            options=[ft.dropdown.Option("Click 'Refresh' to load devices")],
             width=300,
             color=self.text_color,
             border_color=self.accent_color,
             focused_border_color=self.accent_color,
             focused_color=self.text_color,
         )
-
-        device_types = []
-        if bt_devices:
-            for device in bt_devices:
-                dt = self.identify_device_type(device)
-                if dt not in device_types:
-                    device_types.append(dt)
 
         type_dropdown = ft.Dropdown(
             label="Select Device Type",
-            options=[ft.dropdown.Option(dt) for dt in device_types] if device_types else [ft.dropdown.Option("⚠️ No Device Types Found")],
+            options=[ft.dropdown.Option("Device types will load after refresh")],
             width=300,
             color=self.text_color,
             border_color=self.accent_color,
@@ -430,14 +646,40 @@ class DeviceManagerUI:
             focused_color=self.text_color,
         )
 
+        def refresh_bt_devices(e):
+            # Load bluetooth devices on demand
+            bt_devices = self.get_bluetooth_devices()
+            device_types = []
+            
+            if bt_devices:
+                bt_dropdown.options = [ft.dropdown.Option(bt) for bt in bt_devices]
+                
+                # Identify device types
+                for device in bt_devices:
+                    dt = self.identify_device_type(device)
+                    if dt not in device_types:
+                        device_types.append(dt)
+                
+                if device_types:
+                    type_dropdown.options = [ft.dropdown.Option(dt) for dt in device_types]
+                else:
+                    type_dropdown.options = [ft.dropdown.Option("No device types found")]
+            else:
+                bt_dropdown.options = [ft.dropdown.Option("No Bluetooth devices found")]
+                type_dropdown.options = [ft.dropdown.Option("No device types available")]
+                
+            bt_dropdown.update()
+            type_dropdown.update()
+            self.add_to_log("🔄 Bluetooth device list refreshed", "blue")
+
         def disable_selected_bt(e):
-            if bt_dropdown.value and "⚠️" not in bt_dropdown.value:
+            if bt_dropdown.value and "⚠️" not in bt_dropdown.value and "Click" not in bt_dropdown.value:
                 self.disable_bluetooth(bt_dropdown.value)
             else:
                 self.add_to_log("⚠️ Select a valid Bluetooth device.", "red")
 
         def enable_selected_bt(e):
-            if bt_dropdown.value and "⚠️" not in bt_dropdown.value:
+            if bt_dropdown.value and "⚠️" not in bt_dropdown.value and "Click" not in bt_dropdown.value:
                 self.enable_bluetooth(bt_dropdown.value)
             else:
                 self.add_to_log("⚠️ Select a valid Bluetooth device.", "red")
@@ -449,7 +691,8 @@ class DeviceManagerUI:
             self.enable_bluetooth()
 
         def disable_by_type(e):
-            if type_dropdown.value and "⚠️" not in type_dropdown.value:
+            if type_dropdown.value and "⚠️" not in type_dropdown.value and "Device types" not in type_dropdown.value:
+                bt_devices = self.get_bluetooth_devices()
                 for device in bt_devices:
                     if self.identify_device_type(device) == type_dropdown.value:
                         self.disable_bluetooth(device)
@@ -457,16 +700,27 @@ class DeviceManagerUI:
                 self.add_to_log("⚠️ Select a valid device type.", "red")
 
         def enable_by_type(e):
-            if type_dropdown.value and "⚠️" not in type_dropdown.value:
+            if type_dropdown.value and "⚠️" not in type_dropdown.value and "Device types" not in type_dropdown.value:
+                bt_devices = self.get_bluetooth_devices()
                 for device in bt_devices:
                     if self.identify_device_type(device) == type_dropdown.value:
                         self.enable_bluetooth(device)
             else:
                 self.add_to_log("⚠️ Select a valid device type.", "red")
 
+        refresh_button = ft.IconButton(
+            icon=ft.icons.REFRESH,
+            icon_color=self.text_color,
+            tooltip="Refresh Bluetooth Devices",
+            on_click=refresh_bt_devices
+        )
+
         return ft.Container(
             content=ft.Column([
-                ft.Text("Bluetooth Control", size=16, weight=ft.FontWeight.BOLD, color=self.text_color),
+                ft.Row([
+                    ft.Text("Bluetooth Control", size=16, weight=ft.FontWeight.BOLD, color=self.text_color),
+                    refresh_button
+                ]),
                 ft.Container(height=10),
                 ft.Row([bt_dropdown]),
                 ft.Row([
@@ -487,7 +741,7 @@ class DeviceManagerUI:
                     ft.ElevatedButton("Enable by Type", on_click=enable_by_type, bgcolor="purple", color="white"),
                 ]),
             ]),
-            bgcolor=self.glass_bgcolor,  # Semi-transparent background
+            bgcolor=self.glass_bgcolor,
             blur=self.container_blur,
             shadow=self.container_shadow,
             border_radius=10,
@@ -496,30 +750,54 @@ class DeviceManagerUI:
         )
 
     # ----------------------
-    # WIFI FUNCTIONALITY
+    # WIFI FUNCTIONALITY - Optimized
     # ----------------------
     def get_available_wifi_networks(self):
-        """List available Wi-Fi networks (Windows)."""
+        """List available Wi-Fi networks (Windows) with caching."""
+        cache_key = "wifi_networks"
+        current_time = time.time()
+        
+        # Return cached result if available and fresh
+        if cache_key in self.device_cache and current_time - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache[cache_key]
+            
         try:
             command = 'netsh wlan show networks mode=bssid'
-            output = subprocess.check_output(command, shell=True, encoding='utf-8')
+            output = subprocess.check_output(command, shell=True, encoding='utf-8', timeout=5)
             ssid_list = []
             for line in output.splitlines():
                 if "SSID" in line and ":" in line:
                     ssid = line.split(":")[1].strip()
                     if ssid and ssid not in ssid_list:
                         ssid_list.append(ssid)
+            
+            # Cache the result
+            self.device_cache[cache_key] = ssid_list
+            self.cache_timestamp = current_time
+            
             return ssid_list
         except subprocess.CalledProcessError:
             self.add_to_log("❌ Error retrieving Wi-Fi networks.", "red")
             return []
-
+        except subprocess.TimeoutExpired:
+            self.add_to_log("❌ Command timed out retrieving Wi-Fi networks.", "red")
+            return []
+            
     def enable_wifi(self):
         """Enable Wi-Fi."""
         try:
             command = 'netsh interface set interface "Wi-Fi" admin=enable'
-            subprocess.run(command, shell=True)
+            subprocess.run(command, shell=True, timeout=5)
             self.add_to_log("✅ Wi-Fi enabled successfully.", "green")
+            
+            # Clear Wi-Fi cache
+            if "wifi_networks" in self.device_cache:
+                del self.device_cache["wifi_networks"]
+            if "wifi_status" in self.device_cache:
+                del self.device_cache["wifi_status"]
+                
+        except subprocess.TimeoutExpired:
+            self.add_to_log("❌ Command timed out while enabling Wi-Fi.", "red")
         except Exception as e:
             self.add_to_log(f"❌ Error enabling Wi-Fi: {str(e)}", "red")
 
@@ -527,8 +805,17 @@ class DeviceManagerUI:
         """Disable Wi-Fi."""
         try:
             command = 'netsh interface set interface "Wi-Fi" admin=disable'
-            subprocess.run(command, shell=True)
+            subprocess.run(command, shell=True, timeout=5)
             self.add_to_log("✅ Wi-Fi disabled successfully.", "red")
+            
+            # Clear Wi-Fi cache
+            if "wifi_networks" in self.device_cache:
+                del self.device_cache["wifi_networks"]
+            if "wifi_status" in self.device_cache:
+                del self.device_cache["wifi_status"]
+                
+        except subprocess.TimeoutExpired:
+            self.add_to_log("❌ Command timed out while disabling Wi-Fi.", "red")
         except Exception as e:
             self.add_to_log(f"❌ Error disabling Wi-Fi: {str(e)}", "red")
 
@@ -536,8 +823,10 @@ class DeviceManagerUI:
         """Block a specific Wi-Fi network."""
         try:
             command = f'netsh wlan add filter permission=block ssid="{ssid}" networktype=infrastructure'
-            subprocess.run(command, shell=True)
+            subprocess.run(command, shell=True, timeout=5)
             self.add_to_log(f"🚫 Blocked Wi-Fi network: {ssid}", "blue")
+        except subprocess.TimeoutExpired:
+            self.add_to_log("❌ Command timed out while blocking Wi-Fi network.", "red")
         except Exception as e:
             self.add_to_log(f"❌ Error blocking Wi-Fi network: {str(e)}", "red")
 
@@ -545,36 +834,65 @@ class DeviceManagerUI:
         """Unblock a specific Wi-Fi network."""
         try:
             command = f'netsh wlan delete filter permission=block ssid="{ssid}" networktype=infrastructure'
-            subprocess.run(command, shell=True)
+            subprocess.run(command, shell=True, timeout=5)
             self.add_to_log(f"✅ Unblocked Wi-Fi network: {ssid}", "green")
+        except subprocess.TimeoutExpired:
+            self.add_to_log("❌ Command timed out while unblocking Wi-Fi network.", "red")
         except Exception as e:
             self.add_to_log(f"❌ Error unblocking Wi-Fi network: {str(e)}", "red")
-
+            
     def get_wifi_status(self):
-        """Get current Wi-Fi status."""
+        """Get current Wi-Fi status with caching."""
+        cache_key = "wifi_status"
+        current_time = time.time()
+        
+        # Return cached result if available and fresh
+        if cache_key in self.device_cache and current_time - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache[cache_key]
+            
         try:
             command = 'netsh interface show interface name="Wi-Fi"'
-            output = subprocess.check_output(command, shell=True, encoding='utf-8')
+            output = subprocess.check_output(command, shell=True, encoding='utf-8', timeout=3)
+            status = "Unknown"
+            
             if "Enabled" in output:
-                return "Enabled"
+                status = "Enabled"
             elif "Disabled" in output:
-                return "Disabled"
-            else:
-                return "Unknown"
+                status = "Disabled"
+                
+            # Cache the result
+            self.device_cache[cache_key] = status
+            self.cache_timestamp = current_time
+            
+            return status
         except Exception:
             return "Unknown"
 
     def get_connected_wifi(self):
-        """Get currently connected Wi-Fi network."""
+        """Get currently connected Wi-Fi network with caching."""
+        cache_key = "connected_wifi"
+        current_time = time.time()
+        
+        # Return cached result if available and fresh
+        if cache_key in self.device_cache and current_time - self.cache_timestamp < self.CACHE_LIFETIME:
+            return self.device_cache[cache_key]
+            
         try:
             command = 'netsh wlan show interfaces'
-            output = subprocess.check_output(command, shell=True, encoding='utf-8')
+            output = subprocess.check_output(command, shell=True, encoding='utf-8', timeout=3)
+            ssid = None
+            
             for line in output.splitlines():
                 if "SSID" in line and ":" in line and "BSSID" not in line:
                     ssid = line.split(":")[1].strip()
                     if ssid:
-                        return ssid
-            return None
+                        break
+                        
+            # Cache the result
+            self.device_cache[cache_key] = ssid
+            self.cache_timestamp = current_time
+            
+            return ssid
         except Exception:
             return None
 
@@ -582,8 +900,15 @@ class DeviceManagerUI:
         """Disconnect from current Wi-Fi network."""
         try:
             command = 'netsh wlan disconnect'
-            subprocess.run(command, shell=True)
+            subprocess.run(command, shell=True, timeout=3)
             self.add_to_log("✅ Disconnected from Wi-Fi network.", "blue")
+            
+            # Clear connected wifi cache
+            if "connected_wifi" in self.device_cache:
+                del self.device_cache["connected_wifi"]
+                
+        except subprocess.TimeoutExpired:
+            self.add_to_log("❌ Command timed out while disconnecting Wi-Fi.", "red")
         except Exception as e:
             self.add_to_log(f"❌ Error disconnecting from Wi-Fi: {str(e)}", "red")
 
@@ -591,30 +916,35 @@ class DeviceManagerUI:
         """Connect to a specific Wi-Fi network."""
         try:
             command = f'netsh wlan connect name="{ssid}"'
-            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=8)
             if "Connection request was completed successfully" in result.stdout:
                 self.add_to_log(f"✅ Connected to {ssid} successfully.", "green")
             else:
                 self.add_to_log(f"⚠️ Could not connect to {ssid}. {result.stdout}", "orange")
+                
+            # Clear connected wifi cache
+            if "connected_wifi" in self.device_cache:
+                del self.device_cache["connected_wifi"]
+                
+        except subprocess.TimeoutExpired:
+            self.add_to_log("❌ Command timed out while connecting to Wi-Fi.", "red")
         except Exception as e:
             self.add_to_log(f"❌ Error connecting to Wi-Fi: {str(e)}", "red")
-
+            
     def create_wifi_section(self) -> ft.Container:
-        """Wi-Fi control UI."""
-        wifi_networks = self.get_available_wifi_networks()
-        wifi_status = self.get_wifi_status()
-        current_network = self.get_connected_wifi() or "Not connected"
-
+        """Wi-Fi control UI with lazy loading."""
+        # Create status displays with default values
         status_text = ft.Text(
-            f"Status: {wifi_status}",
-            color="green" if wifi_status == "Enabled" else "red",
+            "Status: Loading...",
+            color="gray",
             weight=ft.FontWeight.BOLD
         )
-        connected_text = ft.Text(f"Connected to: {current_network}", color=self.text_color)
+        connected_text = ft.Text("Connected to: Checking...", color=self.text_color)
 
+        # Create empty dropdown that will be populated on demand
         ssid_dropdown = ft.Dropdown(
             label="Select Wi-Fi Network",
-            options=[ft.dropdown.Option(ssid) for ssid in wifi_networks] if wifi_networks else [ft.dropdown.Option("⚠️ No Wi-Fi Networks Found")],
+            options=[ft.dropdown.Option("Click 'Refresh' to scan networks")],
             width=300,
             color=self.text_color,
             border_color=self.accent_color,
@@ -623,15 +953,37 @@ class DeviceManagerUI:
         )
 
         def refresh_networks(e):
-            new_networks = self.get_available_wifi_networks()
-            ssid_dropdown.options = [ft.dropdown.Option(nw) for nw in new_networks] if new_networks else [ft.dropdown.Option("⚠️ No Wi-Fi Networks Found")]
+            # Update status first (quick operation)
             new_status = self.get_wifi_status()
-            new_current_network = self.get_connected_wifi() or "Not connected"
             status_text.value = f"Status: {new_status}"
             status_text.color = "green" if new_status == "Enabled" else "red"
+            status_text.update()
+            
+            # Update connected network info (quick operation)
+            new_current_network = self.get_connected_wifi() or "Not connected"
             connected_text.value = f"Connected to: {new_current_network}"
-            self.add_to_log("🔄 Refreshed Wi-Fi networks list.", "blue")
-            e.page.update()
+            connected_text.update()
+            
+            # Start loading message
+            ssid_dropdown.label = "Scanning Wi-Fi Networks..."
+            ssid_dropdown.update()
+            
+            # Start network scan in background thread to prevent UI freeze
+            def scan_networks_thread():
+                new_networks = self.get_available_wifi_networks()
+                
+                # Update dropdown on main thread
+                if e.page:
+                    def update_dropdown():
+                        ssid_dropdown.label = "Select Wi-Fi Network"
+                        ssid_dropdown.options = [ft.dropdown.Option(nw) for nw in new_networks] if new_networks else [ft.dropdown.Option("⚠️ No Wi-Fi Networks Found")]
+                        ssid_dropdown.update()
+                        self.add_to_log(f"🔄 Found {len(new_networks)} Wi-Fi networks.", "blue")
+                    
+                    e.page.run_async(update_dropdown)
+            
+            # Start background thread
+            threading.Thread(target=scan_networks_thread, daemon=True).start()
 
         def disable_wifi_click(e):
             self.disable_wifi()
@@ -646,9 +998,9 @@ class DeviceManagerUI:
             e.page.update()
 
         def connect_wifi_click(e):
-            if ssid_dropdown.value and "⚠️" not in ssid_dropdown.value:
+            if ssid_dropdown.value and "⚠️" not in ssid_dropdown.value and "Click" not in ssid_dropdown.value:
                 self.connect_wifi(ssid_dropdown.value)
-                time.sleep(2)
+                time.sleep(1)  # Brief delay to allow connection
                 new_current = self.get_connected_wifi() or "Not connected"
                 connected_text.value = f"Connected to: {new_current}"
                 e.page.update()
@@ -661,13 +1013,13 @@ class DeviceManagerUI:
             e.page.update()
 
         def block_ssid_click(e):
-            if ssid_dropdown.value and "⚠️" not in ssid_dropdown.value:
+            if ssid_dropdown.value and "⚠️" not in ssid_dropdown.value and "Click" not in ssid_dropdown.value:
                 self.block_wifi_network(ssid_dropdown.value)
             else:
                 self.add_to_log("⚠️ Please select a valid Wi-Fi network.", "red")
 
         def unblock_ssid_click(e):
-            if ssid_dropdown.value and "⚠️" not in ssid_dropdown.value:
+            if ssid_dropdown.value and "⚠️" not in ssid_dropdown.value and "Click" not in ssid_dropdown.value:
                 self.unblock_wifi_network(ssid_dropdown.value)
             else:
                 self.add_to_log("⚠️ Please select a valid Wi-Fi network.", "red")
@@ -716,7 +1068,7 @@ class DeviceManagerUI:
                     ft.ElevatedButton("Unblock Network", on_click=unblock_ssid_click, bgcolor="purple", color="white"),
                 ]),
             ]),
-            bgcolor=self.glass_bgcolor,  # Semi-transparent background
+            bgcolor=self.glass_bgcolor,
             blur=self.container_blur,
             shadow=self.container_shadow,
             border_radius=10,

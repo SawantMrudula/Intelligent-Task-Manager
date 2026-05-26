@@ -60,22 +60,26 @@ class FletLogHandler(logging.Handler):
             ipv6_match = ip_pattern_ipv6.search(msg)
             if ipv4_match:
                 if self.ipv4_logs_table_ref.current:
-                    table = self.ipv4_logs_table_ref.current.content.controls[0]
+                    # Navigate through the nested structure to get to the DataTable
+                    table = self.ipv4_logs_table_ref.current.content.controls[0].controls[0]
                     table.rows.append(new_row)
                     table.rows = table.rows[-50:]
             elif ipv6_match:
                 if self.ipv6_logs_table_ref.current:
-                    table = self.ipv6_logs_table_ref.current.content.controls[0]
+                    # Navigate through the nested structure to get to the DataTable
+                    table = self.ipv6_logs_table_ref.current.content.controls[0].controls[0]
                     table.rows.append(new_row)
                     table.rows = table.rows[-50:]
             else:
                 # no IP found => log to both
                 if self.ipv4_logs_table_ref.current:
-                    t4 = self.ipv4_logs_table_ref.current.content.controls[0]
+                    # Navigate through the nested structure to get to the DataTable
+                    t4 = self.ipv4_logs_table_ref.current.content.controls[0].controls[0]
                     t4.rows.append(new_row)
                     t4.rows = t4.rows[-50:]
                 if self.ipv6_logs_table_ref.current:
-                    t6 = self.ipv6_logs_table_ref.current.content.controls[0]
+                    # Navigate through the nested structure to get to the DataTable
+                    t6 = self.ipv6_logs_table_ref.current.content.controls[0].controls[0]
                     t6.rows.append(new_row)
                     t6.rows = t6.rows[-50:]
         except Exception as e:
@@ -142,8 +146,8 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
                             current_time.strftime("%Y-%m-%d %H:%M:%S"),
                             "Pending",
                             conn.status,
-                            f"{psutil.net_io_counters().bytes_recv / (1024 * 1024):.2f} MB",  # Convert to MB
-                            f"{psutil.net_io_counters().bytes_sent / (1024 * 1024):.2f} MB"   # Convert to MB
+                            f"{psutil.net_io_counters().bytes_recv / 1024:.2f} KB",
+                            f"{psutil.net_io_counters().bytes_sent / 1024:.2f} KB"
                         ]
                         if ':' in ip:
                             connection_logs["ipv6"].append(row)
@@ -165,8 +169,8 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
                         connections[ip]['connected_at'].strftime("%Y-%m-%d %H:%M:%S"),
                         "Safe",
                         "Disconnected",
-                        f"{bytes_recv / (1024 * 1024):.2f} MB",  # Convert to MB
-                        f"{bytes_sent / (1024 * 1024):.2f} MB"    # Convert to MB
+                        f"{bytes_recv / 1024:.2f} KB",
+                        f"{bytes_sent / 1024:.2f} KB"
                     ]
                     if ':' in ip:
                         connection_logs["ipv6"].append(row)
@@ -189,8 +193,8 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
                         c['remote_addr'],
                         c['security_check'],
                         c['status'],
-                        f"{c['bytes_recv'] / (1024 * 1024):.2f} MB",  # Convert to MB
-                        f"{c['bytes_sent'] / (1024 * 1024):.2f} MB"   # Convert to MB
+                        f"{c['bytes_recv'] / 1024:.2f} KB",
+                        f"{c['bytes_sent'] / 1024:.2f} KB"
                     ])
                 else:
                     live_ipv6.append([
@@ -199,8 +203,8 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
                         c['remote_addr'],
                         c['security_check'],
                         c['status'],
-                        f"{c['bytes_recv'] / (1024 * 1024):.2f} MB",  # Convert to MB
-                        f"{c['bytes_sent'] / (1024 * 1024):.2f} MB"   # Convert to MB
+                        f"{c['bytes_recv'] / 1024:.2f} KB",
+                        f"{c['bytes_sent'] / 1024:.2f} KB"
                     ])
             status = f"Found {len(live_ipv4)} IPv4 and {len(live_ipv6)} IPv6 connections"
             return live_ipv4, live_ipv6, status
@@ -211,7 +215,7 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
     def create_network_table(columns, sample_data=None, table_ref=None):
         if sample_data is None:
             sample_data = []
-        
+       
         # Create a DataTable with a large width to accommodate columns
         data_table = ft.DataTable(
             columns=[
@@ -236,16 +240,27 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
             width=len(columns) * 200,  # Adjust the width based on the number of columns
         )
 
-        # Wrap the DataTable in a Row with horizontal scrolling
+        # First wrap the DataTable in a Row for horizontal scrolling
+        horizontal_scroll_container = ft.Row(
+            controls=[data_table],
+            scroll="auto",
+        )
+        
+        # Then wrap that in a Column for vertical scrolling
+        vertical_scroll_container = ft.Column(
+            controls=[horizontal_scroll_container],
+            scroll="auto",
+            expand=True,
+        )
+        
+        # Finally wrap in a container with clip behavior
         table = ft.Container(
-            content=ft.Row(
-                controls=[data_table],
-                scroll="auto",
-            ),
+            content=vertical_scroll_container,
             ref=table_ref,
             clip_behavior=ft.ClipBehavior.HARD_EDGE,
             expand=True,
             padding=5,
+            height=300,  # Set a fixed height to ensure vertical scrollbar appears
         )
         return table
 
@@ -256,7 +271,8 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
             status_text_ref.current.value = status
 
         if ipv4_live_table_ref.current:
-            t = ipv4_live_table_ref.current.content.controls[0]
+            # Navigate through the nested structure to get to the DataTable
+            t = ipv4_live_table_ref.current.content.controls[0].controls[0]
             t.rows = [
                 ft.DataRow(
                     cells=[ft.DataCell(ft.Text(str(cell), color="white", size=11)) for cell in row]
@@ -264,7 +280,8 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
             ]
 
         if ipv6_live_table_ref.current:
-            t = ipv6_live_table_ref.current.content.controls[0]
+            # Navigate through the nested structure to get to the DataTable
+            t = ipv6_live_table_ref.current.content.controls[0].controls[0]
             t.rows = [
                 ft.DataRow(
                     cells=[ft.DataCell(ft.Text(str(cell), color="white", size=11)) for cell in row]
@@ -272,14 +289,16 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
             ]
 
         if ipv4_logs_table_ref.current:
-            t4 = ipv4_logs_table_ref.current.content.controls[0]
+            # Navigate through the nested structure to get to the DataTable
+            t4 = ipv4_logs_table_ref.current.content.controls[0].controls[0]
             t4.rows = [
                 ft.DataRow(
                     cells=[ft.DataCell(ft.Text(str(cell), color="white", size=11)) for cell in row]
                 ) for row in connection_logs["ipv4"]
             ]
         if ipv6_logs_table_ref.current:
-            t6 = ipv6_logs_table_ref.current.content.controls[0]
+            # Navigate through the nested structure to get to the DataTable
+            t6 = ipv6_logs_table_ref.current.content.controls[0].controls[0]
             t6.rows = [
                 ft.DataRow(
                     cells=[ft.DataCell(ft.Text(str(cell), color="white", size=11)) for cell in row]
@@ -302,11 +321,11 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
 
     # ---------- UI Layout (unchanged) ----------
     ipv4_live_columns = [
-        "Process Name", "PID", "IP Address", "Security Check", 
+        "Process Name", "PID", "IP Address", "Security Check",
         "Status", "Data in", "Data out"
     ]
     ipv6_live_columns = [
-        "Process Name", "PID", "IP Address", "Security Check", 
+        "Process Name", "PID", "IP Address", "Security Check",
         "Status", "Data in", "Data out"
     ]
     ipv4_logs_columns = [
@@ -362,21 +381,10 @@ def create_network_monitoring_layout(glass_bgcolor, container_blur, container_sh
                     ]),
                     expand=True,
                 ),
-                ft.Container(
-                    content=ft.Divider(height=0, color="#14E1F4"),
-                    alignment=ft.alignment.center,
-                    width=2000,
-                    shadow=BoxShadow(
-                        spread_radius=2,
-                        blur_radius=10,
-                        color="#14E1F4",
-                        offset=Offset(0, 0),
-                        blur_style=ShadowBlurStyle.OUTER,
-                    ),
-                ),
+                # Simple spacer between the two sections
+                ft.Container(height=20),
                 ft.Container(
                     content=ft.Column([
-                        ft.Container(height=10),
                         ft.Text("Network Connections: IPv6", size=18, weight=ft.FontWeight.BOLD, color="white"),
                         create_network_table(ipv6_logs_columns, table_ref=ipv6_logs_table_ref),
                     ]),
