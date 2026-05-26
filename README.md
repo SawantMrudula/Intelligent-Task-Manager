@@ -69,3 +69,56 @@ Maintains structured CSV logs containing timestamps, process activity, IP reputa
 * Privacy Protection
 * Threat Intelligence Analysis
 * System Behavior Analysis
+
+
+Setup & Installation
+1. Clone the Repository
+git clone https://github.com/your-username/intelligent-task-manager.git
+cd intelligent-task-manager
+Create Virtual Environment (.venv)
+Windows
+python -m venv .venv
+
+Activate the virtual environment:
+
+.venv\Scripts\activate
+Linux/macOS
+python3 -m venv .venv
+source .venv/bin/activate
+Install Dependencies
+pip install -r requirements.txt
+
+Or manually install required libraries:
+
+pip install scapy psutil pandas requests pybloom-live wmi
+Running the Project
+python main.py
+Generate __pycache__
+
+Python automatically creates the __pycache__ directory after running Python files.
+
+Example:
+
+python main.py
+
+After execution, Python generates:
+
+__pycache__/
+
+This folder stores compiled bytecode (.pyc) files to improve execution speed.
+
+Recommended .gitignore
+# Virtual Environment
+.venv/
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+*.csv
+
+# OS Files
+.DS_Store
+Thumbs.db
