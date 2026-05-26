@@ -1,0 +1,10 @@
+{"timestamp": "2023-10-01 12:00:00", "level": "INFO", "script": "main.py", "module": "module1", "funcName": "function1", "lineNo": 10, "message": "This is a sample log message."}
+{"timestamp": "2023-10-01 12:01:00", "level": "ERROR", "script": "main.py", "module": "module2", "funcName": "function2", "lineNo": 20, "message": "An error occurred."}
+{"timestamp": "2023-10-01 12:02:00", "level": "WARNING", "script": "main.py", "module": "module3", "funcName": "function3", "lineNo": 30, "message": "This is a warning message."}
+{"timestamp": "2023-10-01 12:03:00", "level": "DEBUG", "script": "main.py", "module": "module4", "funcName": "function4", "lineNo": 40, "message": "Debugging information."}
+{"timestamp": "2023-10-01 12:04:00", "level": "INFO", "script": "main.py", "module": "module5", "funcName": "function5", "lineNo": 50, "message": "Another info log."}
+{"timestamp": "2023-10-01 12:05:00", "level": "CRITICAL", "script": "main.py", "module": "module6", "funcName": "function6", "lineNo": 60, "message": "Critical error occurred!"}
+{"timestamp": "2023-10-01 12:06:00", "level": "INFO", "script": "main.py", "module": "module7", "funcName": "function7", "lineNo": 70, "message": "Process completed successfully."}
+{"timestamp": "2023-10-01 12:07:00", "level": "ERROR", "script": "main.py", "module": "module8", "funcName": "function8", "lineNo": 80, "message": "Failed to process data."}
+{"timestamp": "2023-10-01 12:08:00", "level": "WARNING", "script": "main.py", "module": "module9", "funcName": "function9", "lineNo": 90, "message": "Low disk space warning."}
+{"timestamp": "2023-10-01 12:09:00", "level": "INFO", "script": "main.py", "module": "module10", "funcName": "function10", "lineNo": 100, "message": "Starting new process."}
