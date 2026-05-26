@@ -1,0 +1,470 @@
+2025-03-06 13:16:33,278 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 13:21:03,124 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 13:24:59,440 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 13:27:31,866 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 13:28:01,394 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 13:29:02,270 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 13:29:52,704 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 13:39:58,947 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 13:58:51,884 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 14:09:23,500 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 14:11:44,401 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 14:13:24,452 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 14:19:27,534 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 14:19:35,163 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 14:27:32,502 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 14:36:21,444 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 14:38:38,501 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 14:41:24,247 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 14:49:19,729 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 15:09:27,994 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 15:10:30,978 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 15:14:53,909 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 15:23:04,284 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 15:43:37,981 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 15:50:01,668 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 15:55:58,384 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 15:59:00,097 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 16:02:31,151 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 16:09:12,616 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 16:11:08,216 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 16:18:22,359 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 16:33:30,865 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 16:39:26,326 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 17:37:19,056 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 17:50:25,600 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 17:52:04,691 - ERROR - Future exception was never retrieved
+future: <Future finished exception=ValueError('\nImage export using the "kaleido" engine requires the kaleido package,\nwhich can be installed using pip:\n    $ pip install -U kaleido\n')>
+Traceback (most recent call last):
+  File "concurrent\futures\thread.py", line 58, in run
+  File "flet\core\page.py", line 903, in wrapper
+  File "integrated.py", line 193, in <lambda>
+  File "integrated.py", line 247, in change_tab
+  File "flet\core\page.py", line 732, in update
+  File "flet\core\page.py", line 798, in __update
+  File "flet\core\page.py", line 814, in __prepare_update
+  File "flet\core\control.py", line 483, in build_update_commands
+  File "flet\core\control.py", line 483, in build_update_commands
+  File "flet\core\control.py", line 483, in build_update_commands
+  [Previous line repeated 3 more times]
+  File "flet\core\control.py", line 464, in build_update_commands
+  File "flet\core\control.py", line 551, in _build_add_commands
+  File "flet\core\control.py", line 551, in _build_add_commands
+  File "flet\core\control.py", line 551, in _build_add_commands
+  [Previous line repeated 1 more time]
+  File "flet\core\control.py", line 540, in _build_add_commands
+  File "flet\core\control.py", line 567, in _build_command
+  File "flet\core\plotly_chart.py", line 126, in before_update
+  File "plotly\basedatatypes.py", line 3764, in to_image
+  File "plotly\io\_kaleido.py", line 132, in to_image
+ValueError: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 17:52:04,776 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 17:52:04,857 - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-3665' coro=<periodic_update() done, defined at proc_chain.py:896> exception=ValueError('\nImage export using the "kaleido" engine requires the kaleido package,\nwhich can be installed using pip:\n    $ pip install -U kaleido\n')>
+Traceback (most recent call last):
+  File "proc_chain.py", line 898, in periodic_update
+  File "proc_chain.py", line 884, in update_ui
+  File "flet\core\page.py", line 732, in update
+  File "flet\core\page.py", line 798, in __update
+  File "flet\core\page.py", line 814, in __prepare_update
+  File "flet\core\control.py", line 483, in build_update_commands
+  File "flet\core\control.py", line 483, in build_update_commands
+  File "flet\core\control.py", line 483, in build_update_commands
+  [Previous line repeated 3 more times]
+  File "flet\core\control.py", line 464, in build_update_commands
+  File "flet\core\control.py", line 551, in _build_add_commands
+  File "flet\core\control.py", line 551, in _build_add_commands
+  File "flet\core\control.py", line 551, in _build_add_commands
+  [Previous line repeated 1 more time]
+  File "flet\core\control.py", line 540, in _build_add_commands
+  File "flet\core\control.py", line 567, in _build_command
+  File "flet\core\plotly_chart.py", line 126, in before_update
+  File "plotly\basedatatypes.py", line 3764, in to_image
+  File "plotly\io\_kaleido.py", line 132, in to_image
+ValueError: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 17:52:04,955 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 17:52:05,037 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 17:52:26,060 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 17:52:26,156 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 17:52:26,316 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:16:13,961 - ERROR - Future exception was never retrieved
+future: <Future finished exception=ValueError('\nImage export using the "kaleido" engine requires the kaleido package,\nwhich can be installed using pip:\n    $ pip install -U kaleido\n')>
+Traceback (most recent call last):
+  File "concurrent\futures\thread.py", line 58, in run
+  File "flet\core\page.py", line 903, in wrapper
+  File "integrated.py", line 193, in <lambda>
+  File "integrated.py", line 247, in change_tab
+  File "flet\core\page.py", line 732, in update
+  File "flet\core\page.py", line 798, in __update
+  File "flet\core\page.py", line 814, in __prepare_update
+  File "flet\core\control.py", line 483, in build_update_commands
+  File "flet\core\control.py", line 483, in build_update_commands
+  File "flet\core\control.py", line 483, in build_update_commands
+  [Previous line repeated 3 more times]
+  File "flet\core\control.py", line 464, in build_update_commands
+  File "flet\core\control.py", line 551, in _build_add_commands
+  File "flet\core\control.py", line 551, in _build_add_commands
+  File "flet\core\control.py", line 551, in _build_add_commands
+  [Previous line repeated 1 more time]
+  File "flet\core\control.py", line 540, in _build_add_commands
+  File "flet\core\control.py", line 567, in _build_command
+  File "flet\core\plotly_chart.py", line 126, in before_update
+  File "plotly\basedatatypes.py", line 3764, in to_image
+  File "plotly\io\_kaleido.py", line 132, in to_image
+ValueError: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:16:25,582 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:16:37,727 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:16:49,717 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:17:01,703 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:17:13,532 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:17:25,591 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:17:37,398 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:17:49,333 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:18:01,291 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:18:13,323 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:18:25,303 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:18:37,543 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:18:49,502 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:19:01,532 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:19:13,602 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:19:25,763 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:19:37,742 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:19:49,876 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:20:01,646 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:20:13,763 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:20:25,511 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:20:37,487 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:20:49,101 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:21:01,065 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:21:12,782 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:21:24,415 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:21:36,244 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:21:48,058 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:21:59,880 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:22:11,759 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:22:23,698 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:22:32,479 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-06 18:22:32,819 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:22:44,997 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:22:56,746 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:23:08,624 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:23:20,182 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:23:31,863 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:23:43,780 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:23:55,697 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:24:07,386 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:24:19,286 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:24:31,011 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:24:42,783 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:24:54,567 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:25:06,450 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:25:18,263 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:25:30,050 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:25:41,806 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:25:53,552 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:26:05,249 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:26:17,180 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:26:28,925 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:26:40,747 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:26:52,381 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:27:04,217 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:27:16,000 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:27:27,930 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:27:39,853 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:27:51,773 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:28:03,806 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:28:15,839 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:28:27,595 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-06 18:28:39,551 - ERROR - Error in update loop: 
+Image export using the "kaleido" engine requires the kaleido package,
+which can be installed using pip:
+    $ pip install -U kaleido
+
+2025-03-07 14:50:20,815 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-07 15:02:57,438 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-07 15:10:12,808 - ERROR - Error fetching process data: 'cpu_percent'
+2025-03-07 15:14:11,060 - ERROR - Error fetching process data: 'cpu_percent'
